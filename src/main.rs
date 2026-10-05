@@ -24,7 +24,10 @@ async fn main() {
         .route("/api/health", get(health))
         .route("/api/users", post(users::handlers::register))
         .route("/api/users/login", post(users::handlers::login))
-        .route("/api/users/me", get(users::handlers::me))
+        .route("/api/users/me", 
+            get(users::handlers::me)
+                .patch(users::handlers::update_user))
+        .route("/api/users/me/password", patch(users::handlers::update_password))
         .route(
             "/api/articles",
             post(articles::handlers::create).get(articles::handlers::list),

@@ -136,14 +136,43 @@ pub async fn remove(
     claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<uuid::Uuid>,
-) -> Result<(StatusCode, ()), Error> {
+) -> Result<StatusCode, Error> {
     ensure_author(&state.db, id, claims.sub).await?;
 
     sqlx::query!("DELETE FROM articles WHERE id = $1", id)
         .execute(&state.db)
         .await?;
 
-    Ok((StatusCode::NO_CONTENT, ()))
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn list_my_articles(
+    claims: Claims,
+    State(state): State<AppState>,
+) -> Result<(StatusCode, Json<ArticleList>), Error> {
+    let articles = sqlx::query_as!(
+        Article,
+        "SELECT id, author_id, title, body, created_at, updated_at
+        FROM articles
+        WHERE author_id = $1
+        ORDER BY created_at DESC",
+        claims.sub
+    )
+    .fetch_all(&state.db)
+    .await?;
+
+    let total = sqlx::query_scalar!(
+        r#"
+        SELECT COUNT(*) as "count!"
+        FROM articles
+        WHERE author_id = $1
+        "#,
+        claims.sub
+    )
+    .fetch_one(&state.db)
+    .await?;
+
+    Ok((StatusCode::OK, Json(ArticleList { articles, total })))
 }
 
 // Helper

@@ -1,9 +1,3 @@
-// * wrapper
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct ArticleBody<T> {
-    pub article: T,
-}
-
 #[derive(serde::Serialize)]
 pub struct ArticleList {
     pub articles: Vec<Article>,
@@ -25,7 +19,7 @@ pub struct Pagination {
 #[derive(serde::Deserialize)]
 pub struct UpdateArticle {
     pub title: Option<String>,
-    pub body: Option<String>
+    pub body: Option<String>,
 }
 
 #[derive(serde::Serialize)]

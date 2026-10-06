@@ -31,6 +31,11 @@ pub struct UpdatePassword {
     pub new_password: String,
 }
 
+#[derive(serde::Deserialize)]
+pub struct DeleteUserConfirmation {
+    pub current_password: String
+}
+
 // * model user
 //
 #[derive(serde::Serialize, serde::Deserialize)]

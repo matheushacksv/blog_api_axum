@@ -6,7 +6,9 @@ use crate::{
     auth::{self, Claims},
     errors::Error,
     state::AppState,
-    users::model::{LoginResponse, LoginUser, NewUser, UpdatePassword, UpdateUser, User},
+    users::model::{
+        DeleteUserConfirmation, LoginResponse, LoginUser, NewUser, UpdatePassword, UpdateUser, User,
+    },
 };
 
 pub async fn register(
@@ -33,7 +35,7 @@ pub async fn register(
         VALUES ($1, $2, $3)
         RETURNING id, name, email",
         body.name,
-        body.email.trim().to_lowercase(),
+        email,
         password_hash,
     )
     .fetch_one(&state.db)
@@ -135,15 +137,7 @@ pub async fn update_password(
 ) -> Result<StatusCode, Error> {
     validate_password_length(&body.new_password)?;
 
-    let user_password_hash =
-        sqlx::query_scalar!("SELECT password_hash FROM users WHERE id = $1", claims.sub)
-            .fetch_optional(&state.db)
-            .await?
-            .ok_or(Error::NotFound)?;
-
-    if !password::verify(&body.old_password, &user_password_hash)? {
-        return Err(Error::ValidationError);
-    }
+    verify_current_password(&state.db, &body.old_password, claims.sub).await?;
 
     let new_password_hash = password::hash(&body.new_password)?;
 
@@ -154,6 +148,20 @@ pub async fn update_password(
     )
     .execute(&state.db)
     .await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn delete_my_account(
+    claims: Claims,
+    State(state): State<AppState>,
+    Json(body): Json<DeleteUserConfirmation>,
+) -> Result<StatusCode, Error> {
+    verify_current_password(&state.db, &body.current_password, claims.sub).await?;
+
+    sqlx::query!("DELETE FROM users WHERE id = $1", claims.sub)
+        .execute(&state.db)
+        .await?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -175,6 +183,24 @@ fn validate_password_length(password: &String) -> Result<(), Error> {
     if password.len() < (8 as usize) {
         return Err(Error::ValidationError);
     };
+
+    Ok(())
+}
+
+async fn verify_current_password(
+    pool: &PgPool,
+    password: &String,
+    id: uuid::Uuid,
+) -> Result<(), Error> {
+    let user_password_hash =
+        sqlx::query_scalar!("SELECT password_hash FROM users WHERE id = $1", id)
+            .fetch_optional(pool)
+            .await?
+            .ok_or(Error::NotFound)?;
+
+    if !password::verify(password, &user_password_hash)? {
+        return Err(Error::ValidationError);
+    }
 
     Ok(())
 }

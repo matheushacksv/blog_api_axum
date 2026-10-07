@@ -180,7 +180,7 @@ async fn get_user_from_db(pool: &PgPool, id: uuid::Uuid) -> Result<User, Error> 
 }
 
 fn validate_password_length(password: &String) -> Result<(), Error> {
-    if password.len() < (8 as usize) {
+    if password.chars().count() < (8 as usize) {
         return Err(Error::ValidationError);
     };
 
@@ -203,4 +203,23 @@ async fn verify_current_password(
     }
 
     Ok(())
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_password_with_8_chars() {
+        let password = String::from("12345678");
+        assert!(validate_password_length(&password).is_ok())
+    }
+
+    #[test]
+    fn rejects_password_with_7_chars() {
+        let password = String::from("1234567");
+        assert!(matches!(validate_password_length(&password), Err(Error::ValidationError)))
+    }
+    
 }

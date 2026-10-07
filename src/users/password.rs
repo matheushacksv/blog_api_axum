@@ -17,3 +17,27 @@ pub fn verify(password: &str, hash: &str) -> Result<bool, Error> {
         .verify_password(password.as_bytes(), &parsed)
         .is_ok())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hash_and_verify_correct_password() {
+        let hash = hash("my-password").unwrap();
+        assert!(verify("my-password", &hash).unwrap());
+    }
+
+    #[test]
+    fn verify_rejects_wrong_password() {
+        let hash = hash("my-password").unwrap();
+        assert!(!verify("not-my-password", &hash).unwrap());
+    }
+
+    #[test]
+    fn same_password_produces_different_hashes() {
+        let first_hash = hash("my-password").unwrap();
+        let second_hash = hash("my-password").unwrap();
+        assert_ne!(first_hash, second_hash);
+    }
+}

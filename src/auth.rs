@@ -19,7 +19,6 @@ impl FromRequestParts<AppState> for Claims {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-
         // get token from Header striping Bearer
         let token = parts
             .headers
@@ -28,15 +27,10 @@ impl FromRequestParts<AppState> for Claims {
             .and_then(|s| s.strip_prefix("Bearer "))
             .ok_or(Error::Unauthorized)?;
 
-        // instance claims
-        let data = decode::<Claims>(
-            token,
-            &DecodingKey::from_secret(state.config.jwt_secret().as_bytes()),
-            &Validation::default(),
-        )
-        .map_err(|_| Error::Unauthorized)?;
+        // decode_token
+        let claims = decode_token(token, state.config.jwt_secret())?;
 
-        Ok(data.claims)
+        Ok(claims)
     }
 }
 
@@ -54,4 +48,36 @@ pub fn create_token(user_id: uuid::Uuid, secret: &str) -> Result<String, Error> 
         &EncodingKey::from_secret(secret.as_bytes()),
     )
     .map_err(|_| Error::Internal)
+}
+
+pub fn decode_token(token: &str, secret: &str) -> Result<Claims, Error> {
+    let data = decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(secret.as_bytes()),
+        &Validation::default(),
+    )
+    .map_err(|_| Error::Unauthorized)?;
+
+    Ok(data.claims)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn correct_decode_secret_token() {
+        let id = uuid::Uuid::new_v4();
+        let token = create_token(id, "secret-a").unwrap();
+        let claims = decode_token(&token, "secret-a").unwrap();
+        assert_eq!(claims.sub, id);
+    }
+
+    #[test]
+    fn incorrect_decode_secret_token() {
+        let id = uuid::Uuid::new_v4();
+        let token = create_token(id, "secret-a").unwrap();
+        let result = decode_token(&token, "secret-b");
+        assert!(matches!(result, Err(Error::Unauthorized)));
+    }
 }

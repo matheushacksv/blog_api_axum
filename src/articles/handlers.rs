@@ -7,7 +7,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::{
-    articles::model::{Article, ArticleList, NewArticle, Pagination, UpdateArticle},
+    articles::model::{Article, ArticleList, Filter, NewArticle, UpdateArticle},
     auth::Claims,
     errors::Error,
     state::AppState,
@@ -58,19 +58,28 @@ pub async fn get_one(
 pub async fn list(
     _claims: Claims,
     State(state): State<AppState>,
-    Query(params): Query<Pagination>,
+    Query(params): Query<Filter>,
 ) -> Result<(StatusCode, Json<ArticleList>), Error> {
     // set limit or offset
     let limit = params.limit.unwrap_or(20).clamp(1, 100);
     let offset = params.offset.unwrap_or(0).max(0);
+    let q = params
+        .q
+        .as_deref()
+        .filter(|q| !q.trim().is_empty())
+        .map(|q| format!("%{}%", q.trim()));
 
     // get articles
     let articles = sqlx::query_as!(
         Article,
         "SELECT id, author_id, title, body, created_at, updated_at
         FROM articles
+        WHERE ($1::uuid IS NULL OR author_id = $1) AND ($2::text IS NULL or title
+        ILIKE $2 or body ILIKE $2)
         ORDER BY created_at DESC
-        LIMIT $1 OFFSET $2",
+        LIMIT $3 OFFSET $4",
+        params.author_id,
+        q,
         limit,
         offset
     )
@@ -82,7 +91,11 @@ pub async fn list(
         r#"
         SELECT COUNT(*) as "count!"
         FROM articles
-        "#
+        WHERE ($1::uuid IS NULL OR author_id = $1) AND ($2::text IS NULL or title
+        ILIKE $2 or body ILIKE $2)
+        "#,
+        params.author_id,
+        q,
     )
     .fetch_one(&state.db)
     .await?;

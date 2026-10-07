@@ -23,7 +23,7 @@ A simple blog API built to learn Rust.
 | DELETE | `api/users/me` | 🔑 delete my account |
 | POST | `api/users/me/password` | 🔑 update password |
 | GET | `api/users/me/articles` | 🔑 list my articles |
-| GET |  `api/articles?limit=&offset=` | 🔑 list (paginated) |
+| GET |  `api/articles?limit=&offset=&author_id=&q=` | 🔑 list (filtered) |
 | POST | `api/articles` | 🔑 create |
 | GET | `api/articles/{id}` | 🔑 get one article | 
 | PATCH | `api/articles/{id}` | 🔑 update (author only) |

@@ -11,7 +11,9 @@ pub struct NewArticle {
 }
 
 #[derive(serde::Deserialize)]
-pub struct Pagination {
+pub struct Filter {
+    pub q: Option<String>,
+    pub author_id: Option<uuid::Uuid>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
